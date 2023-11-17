@@ -90,6 +90,9 @@ StyleCopReport.xml
 *.tmp
 *.tmp_proj
 *_wpftmp.csproj
+*.sln
+*.vcxproj
+*.vcxproj.*
 *.log
 *.vspscc
 *.vssscc
@@ -97,6 +100,9 @@ StyleCopReport.xml
 *.pidb
 *.svclog
 *.scc
+
+# Mathematica files
+*.nb
 
 # Chutzpah Test files
 _Chutzpah*
@@ -117,6 +123,9 @@ ipch/
 *.vsp
 *.vspx
 *.sap
+
+# Old files
+*_back
 
 # Visual Studio Trace Files
 *.e2e
