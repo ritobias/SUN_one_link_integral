@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33927.289
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SUN_one_link_integral", "SUN_one_link_integral.vcxproj", "{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Debug|x64.ActiveCfg = Debug|x64
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Debug|x64.Build.0 = Debug|x64
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Debug|x86.ActiveCfg = Debug|Win32
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Debug|x86.Build.0 = Debug|Win32
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Release|x64.ActiveCfg = Release|x64
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Release|x64.Build.0 = Release|x64
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Release|x86.ActiveCfg = Release|Win32
+		{83CF6A2C-DD6D-420F-A2B2-B6FBB8671C5C}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4E6DE5E8-F6AA-4222-92BE-E02B89A085B6}
+	EndGlobalSection
+EndGlobal
