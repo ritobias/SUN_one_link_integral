@@ -19,10 +19,11 @@ int main()
     }
     */
 
-    int n=2;
+    int n=5;
     ctype** a=new ctype*[n];
     for(int i=0; i<n; ++i) {
-        a[i]=new ctype[n];
+        a[i]=new ctype[n]();
+        a[i][i]=0.0;
     }
 
     a[0][0]=ctype(5.03515381452392503,0.15076697536697338);
@@ -66,7 +67,7 @@ int main()
         }
     }
 
-    ftype tb=5.;
+    ftype tb=18.;
 
     sun_integrator sun_int(n);
     sun_int.set_beta(tb);

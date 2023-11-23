@@ -1294,6 +1294,11 @@ public:
 			}
 		}
 
+		tbrsqpowtab=new ftype*[n];
+		for(int i=0; i<n; ++i) {
+			tbrsqpowtab[i]=new ftype[n]();
+		}
+
 		pal=new ftype[n]();
 		pals=new int[n]();
 		pall=new ftype[n]();
@@ -1349,6 +1354,20 @@ public:
 			}
 			lf0+=ltbrsq-std::log((ftype)(1+im))-std::log((ftype)(2+im-n));
 		}
+		
+		ftype powfc;
+		for(int k=0; k<n; ++k) {
+			powfc=1.0;
+			for(int j=k; j<n; ++j) {
+				tbrsqpowtab[k][j]=powfc;
+				powfc*=tbrsq;
+			}
+			powfc=1.0/tbrsq;
+			for(int j=k+1; j<n; ++j) {
+				tbrsqpowtab[j][k]=powfc;
+				powfc/=tbrsq;
+			}
+		}
 	}
 
 	~sun_integrator() {
@@ -1365,6 +1384,11 @@ public:
 			delete[] lfl[im];
 		}
 		delete[] lfl;
+
+		for(int i=0; i<n; ++i) {
+			delete[] tbrsqpowtab[i];
+		}
+		delete[] tbrsqpowtab;
 
 		delete[] pal;
 		delete[] pals;
@@ -1394,19 +1418,19 @@ public:
 		chp(cp,a);
 
 		int tlmax=lmax;
+		int im,ij,il;
 		ftype lrpf=0;
 		ftype tacp0=std::abs(cp[0]);
-		if(tacp0>0) {
+		if(tacp0>_fprec) {
 			lrpf=nltbr+0.5*std::log(tacp0);
+			for(il=1; il<lmax; ++il) {
+				if((ftype)il*lrpf-ltabl[il]<_lfprec) {
+					tlmax=il;
+					break;
+				}
+			}
 		} else {
 			tlmax=1;
-		}
-		int im,ij,il;
-		for(il=1; il<lmax; ++il) {
-			if((ftype)il*lrpf-ltabl[il]<_lfprec) {
-				tlmax=il;
-				break;
-			}
 		}
 
 		for(im=0; im<n; ++im) {
@@ -1583,7 +1607,20 @@ public:
 		for(ij=0; ij<n; ++ij) {
 			for(k=0; k<n; ++k) {
 				tal[il][ij][k]+=talc[il][ij][k];
+				tal[il][ij][k]*=tbrsqpowtab[k][ij];
 			}
+		}
+
+		if(0) {
+			// print tal[0][][] matrix:
+			std::cout<<std::endl;
+			for(ij=0; ij<n; ++ij) {
+				for(k=0; k<n; ++k) {
+					std::cout<<tal[il][ij][k]<<" ";
+				}
+				std::cout<<std::endl;
+			}
+			std::cout<<std::endl;
 		}
 
 		fdet(tal[il],chl,ch);
@@ -1595,6 +1632,7 @@ public:
 			for(ij=0; ij<n; ++ij) {
 				for(k=0; k<n; ++k) {
 					tal[il][ij][k]+=talc[il][ij][k];
+					tal[il][ij][k]*=tbrsqpowtab[k][ij];
 				}
 			}
 			
@@ -1867,6 +1905,7 @@ private:
 	int mmax;
 	int nhlmax;
 	ftype* ltabl;
+	ftype** tbrsqpowtab;
 	ftype*** lfl;
 	ftype rf;
 	ftype rfsqrt;
