@@ -3,6 +3,7 @@
 #include <complex>
 #include <limits>
 #include <cmath>
+#include <iostream>
 
 typedef double ftype;
 typedef std::complex<ftype> ctype;
@@ -1259,64 +1260,90 @@ private:
 
 class sun_integrator {
 public:
+	sun_integrator(): a(0),n(0),d(0),chp(),cdet(),fdet(),tbr(0),nltbr(0),tbrsq(0),ltbrsq(0),cp(0),cps(0),cpl(0),cpc(0),rfsqrt(0),rf(0),trs(0),nhlmax(0),lmax(0),ltabl(0),ltmf(0),lnormf(0),mmax(0),tbrpowtab(0),pal(0),pals(0),pall(0),tal(0),talc(0),nl(0),lfl(0) {
+
+	}
+
 	sun_integrator(int tn,int td=4): n(tn),d(td),chp(tn),cdet(tn),fdet(tn),tbr(0),nltbr(0),tbrsq(0),ltbrsq(0) {
-		new_matrix(a,0);
-		cp=new ftype[n+1]();
-		cps=new int[n+1]();
-		cpl=new ftype[n+1]();
-		cpc=new ctype[n+1]();
-		rfsqrt=(ftype)((d*(d-1))/2);
-		rf=rfsqrt*rfsqrt;
+		_init();
+	}
 
-		trs=1.0/rf;
+	void init(int tn,int td=4) {
+		n=tn;
+		d=td;
 
-		nhlmax=3;
+		chp.set_n(n);
+		cdet.set_n(n);
+		fdet.set_n(n);
 
-		lmax=100;
-		ltabl=new ftype[lmax]();
-		ftype tlf=0;
-		ltabl[0]=tlf;
-		for(int l=1; l<lmax; ++l) {
-			tlf+=std::log((ftype)l);
-			ltabl[l]=(ftype)n*tlf;
-		}
-		ltmf=0;
-		for(int i=1; i<=n; ++i) {
-			ltmf+=std::log((ftype)i);
-		}
+		_init();
+	}
 
-		mmax=100;
-		lfl=new ftype**[mmax];
-		for(int im=0; im<mmax; ++im) {
-			lfl[im]=new ftype*[lmax];
-			for(int il=0; il<lmax; ++il) {
-				lfl[im][il]=new ftype[n]();
+	void _init() {
+		if(n>0&&d>1) {
+			new_matrix(a,0);
+			cp=new ftype[n+1]();
+			cps=new int[n+1]();
+			cpl=new ftype[n+1]();
+			cpc=new ctype[n+1]();
+			rfsqrt=(ftype)(2*(d-1));
+			rf=rfsqrt*rfsqrt;
+
+			trs=1.0/rf;
+
+			nhlmax=3;
+
+			lmax=100;
+			ltabl=new ftype[lmax]();
+			ftype tlf=0;
+			ltabl[0]=tlf;
+			for(int l=1; l<lmax; ++l) {
+				tlf+=std::log((ftype)l);
+				ltabl[l]=(ftype)n*tlf;
 			}
-		}
-
-		tbrsqpowtab=new ftype*[n];
-		for(int i=0; i<n; ++i) {
-			tbrsqpowtab[i]=new ftype[n]();
-		}
-
-		pal=new ftype[n]();
-		pals=new int[n]();
-		pall=new ftype[n]();
-		tal=new ftype**[lmax];
-		for(int l=0; l<lmax; ++l) {
-			tal[l]=new ftype*[n];
-			for(int j=0; j<n; ++j) {
-				tal[l][j]=new ftype[n]();
+			ltmf=0;
+			for(int i=1; i<=n; ++i) {
+				ltmf+=std::log((ftype)i);
 			}
-		}
-		talc=new ftype**[lmax];
-		for(int l=0; l<lmax; ++l) {
-			talc[l]=new ftype*[n];
-			for(int j=0; j<n; ++j) {
-				talc[l][j]=new ftype[n]();
+
+			lnormf=0;
+			for(int i=1; i<n; ++i) {
+				lnormf+=(n-i)*std::log((ftype)i);
 			}
+
+			mmax=100;
+			lfl=new ftype**[mmax];
+			for(int im=0; im<mmax; ++im) {
+				lfl[im]=new ftype*[lmax];
+				for(int il=0; il<lmax; ++il) {
+					lfl[im][il]=new ftype[n]();
+				}
+			}
+
+			tbrpowtab=new ftype*[n];
+			for(int i=0; i<n; ++i) {
+				tbrpowtab[i]=new ftype[n]();
+			}
+
+			pal=new ftype[n]();
+			pals=new int[n]();
+			pall=new ftype[n]();
+			tal=new ftype**[lmax];
+			for(int l=0; l<lmax; ++l) {
+				tal[l]=new ftype*[n];
+				for(int j=0; j<n; ++j) {
+					tal[l][j]=new ftype[n]();
+				}
+			}
+			talc=new ftype**[lmax];
+			for(int l=0; l<lmax; ++l) {
+				talc[l]=new ftype*[n];
+				for(int j=0; j<n; ++j) {
+					talc[l][j]=new ftype[n]();
+				}
+			}
+			nl=new ftype[n]();
 		}
-		nl=new ftype[n]();
 	}
 
 	void set_beta(ftype beta) {
@@ -1359,13 +1386,13 @@ public:
 		for(int k=0; k<n; ++k) {
 			powfc=1.0;
 			for(int j=k; j<n; ++j) {
-				tbrsqpowtab[k][j]=powfc;
-				powfc*=tbrsq;
+				tbrpowtab[k][j]=powfc;
+				powfc*=tbr;
 			}
-			powfc=1.0/tbrsq;
+			powfc=1.0/tbr;
 			for(int j=k+1; j<n; ++j) {
-				tbrsqpowtab[j][k]=powfc;
-				powfc/=tbrsq;
+				tbrpowtab[j][k]=powfc;
+				powfc/=tbr;
 			}
 		}
 	}
@@ -1386,9 +1413,9 @@ public:
 		delete[] lfl;
 
 		for(int i=0; i<n; ++i) {
-			delete[] tbrsqpowtab[i];
+			delete[] tbrpowtab[i];
 		}
-		delete[] tbrsqpowtab;
+		delete[] tbrpowtab;
 
 		delete[] pal;
 		delete[] pals;
@@ -1607,7 +1634,7 @@ public:
 		for(ij=0; ij<n; ++ij) {
 			for(k=0; k<n; ++k) {
 				tal[il][ij][k]+=talc[il][ij][k];
-				tal[il][ij][k]*=tbrsqpowtab[k][ij];
+				tal[il][ij][k]*=tbrpowtab[k][ij];
 			}
 		}
 
@@ -1632,7 +1659,7 @@ public:
 			for(ij=0; ij<n; ++ij) {
 				for(k=0; k<n; ++k) {
 					tal[il][ij][k]+=talc[il][ij][k];
-					tal[il][ij][k]*=tbrsqpowtab[k][ij];
+					tal[il][ij][k]*=tbrpowtab[k][ij];
 				}
 			}
 			
@@ -1645,7 +1672,7 @@ public:
 			}
 			tsum+=2.0*std::cos(il*tth)*ch*std::exp(tmaxexp-maxexp);
 		}
-		return std::log(tsum)+maxexp;
+		return std::log(tsum)+maxexp+lnormf;
 	}
 
 private:
@@ -1905,7 +1932,7 @@ private:
 	int mmax;
 	int nhlmax;
 	ftype* ltabl;
-	ftype** tbrsqpowtab;
+	ftype** tbrpowtab;
 	ftype*** lfl;
 	ftype rf;
 	ftype rfsqrt;
@@ -1926,6 +1953,7 @@ private:
 	ftype tbrsq;
 	ftype ltbrsq;
 	ftype ltmf;
+	ftype lnormf;
 	charpoly chp;
 	lu_det<ctype,ftype> cdet;
 	lu_det<ftype,ftype> fdet;
