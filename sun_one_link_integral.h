@@ -1156,7 +1156,7 @@ public:
 	}
 
 	void operator()(T** ta,fT& tldet, T& tsdet) {
-		//comutes for matrix ta[][] :  tldet=log(abs(det)); tsdet=phase(det);
+		//comutes for matrix ta[][] :  tldet=log(abs(det(ta))); tsdet=phase(det(ta));
 		int imax=-1;
 		tsdet=0;
 		tldet=0;
@@ -1246,8 +1246,12 @@ public:
 		for(j=0; j<n; ++j) {
 			dum=a[j][j];
 			tmp=std::abs(dum);
-			tldet+=std::log(tmp);
-			tsdet*=dum/tmp;
+			if(tmp>0) {
+				tldet+=std::log(tmp);
+				tsdet*=dum/tmp;
+			} else {
+				tsdet=0;
+			}
 		}
 		return;
 	}
@@ -1527,22 +1531,25 @@ public:
 			pals[0]=chs;
 			pall[0]=chl;
 
-			if(chs!=0&&std::exp(afcl+chl)>_fprec*std::abs(tal[0][0][0])) {
+			if(chs!=0) {
 				for(ij=0; ij<n; ++ij) {
 					for(il=0; il<tlmax; ++il) {
-						//tal[il][ij][0]+=chs*std::exp(chl+lfc[il][ij]); (with Kahan summation)
 						ttal=tal[il][ij][0];
-						texp=(ftype)chs*std::exp(chl+lfc[il][ij]);
-						tt=ttal+texp;
-						if(std::abs(ttal)>=std::abs(texp)) {
-							talc[il][ij][0]+=(ttal-tt)+texp;
-						} else {
-							talc[il][ij][0]+=(texp-tt)+ttal;
+						texp=std::exp(chl+lfc[il][ij]);
+						if(texp>_fprec*std::abs(ttal)) {
+							//tal[il][ij][0]+=chs*std::exp(chl+lfc[il][ij]); (with Kahan summation)
+							texp*=(ftype)chs;
+							tt=ttal+texp;
+							if(std::abs(ttal)>=std::abs(texp)) {
+								talc[il][ij][0]+=(ttal-tt)+texp;
+							} else {
+								talc[il][ij][0]+=(texp-tt)+ttal;
+							}
+							tal[il][ij][0]=tt;
+							tch=1;
 						}
-						tal[il][ij][0]=tt;
 					}
 				}
-				tch=1;
 			}
 
 			for(k=1; k<n; ++k) {
@@ -1596,22 +1603,25 @@ public:
 				pals[k]=chs;
 				pall[k]=chl;
 
-				if(chs!=0&&std::exp(afcl+chl)>_fprec*std::abs(tal[0][0][k])) {
+				if(chs!=0) {
 					for(ij=0; ij<n; ++ij) {
 						for(il=0; il<tlmax; ++il) {
 							//tal[il][ij][k]+=chs*std::exp(chl+lfc[il][ij]); (with Kahan summation)
 							ttal=tal[il][ij][k];
-							texp=(ftype)chs*std::exp(chl+lfc[il][ij]);
-							tt=ttal+texp;
-							if(std::abs(ttal)>=std::abs(texp)) {
-								talc[il][ij][k]+=(ttal-tt)+texp;
-							} else {
-								talc[il][ij][k]+=(texp-tt)+ttal;
+							texp=std::exp(chl+lfc[il][ij]);
+							if(texp>_fprec*std::abs(ttal)) {
+								texp*=(ftype)chs;
+								tt=ttal+texp;
+								if(std::abs(ttal)>=std::abs(texp)) {
+									talc[il][ij][k]+=(ttal-tt)+texp;
+								} else {
+									talc[il][ij][k]+=(texp-tt)+ttal;
+								}
+								tal[il][ij][k]=tt;
+								tch=1;
 							}
-							tal[il][ij][k]=tt;
 						}
 					}
-					tch=1;
 				}
 			}
 			if(tch==0) {
@@ -1623,6 +1633,7 @@ public:
 					nhl=nhlmax;
 				}
 			} else {
+				std::cout<<"niter: "<<im<<std::endl;
 				break;
 			}
 		}
