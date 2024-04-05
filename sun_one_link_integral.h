@@ -11,10 +11,10 @@ typedef std::complex<ftype> ctype;
 static const ftype _fmin=std::numeric_limits<ftype>::min();
 static const ftype _fmax=std::numeric_limits<ftype>::max();
 static const ftype _fprec=std::numeric_limits<ftype>::epsilon();
-//static const ftype _lfprec=std::numeric_limits<ftype>::min_exponent;
 static const ftype _lfprec=std::log(_fprec);
 
 namespace levi_civita {
+	// functions for creating lists of the non-zero entries of the Levi-Civita symbol
 	static void permute(int** tlcs,int* arr,const int& arrlen,int& icnt,int sign=1,int ipos=0) {
 		//recursive function that generates all permutations of 0 1 2 3 ... d 
 		//and the corresponding signs {-1,1}.
@@ -54,7 +54,7 @@ namespace levi_civita {
 		}
 		lcs=new int* [dfac];
 		for(int i=0; i<dfac; ++i) {
-			lcs[i]=new int[n+1];
+			lcs[i]=new int[n+1]();
 		}
 
 		int icnt=0;
@@ -80,12 +80,17 @@ namespace levi_civita {
 };
 
 class charpoly {
+	// class that acts as functor that computes the coefficients of the characteristic
+	// polynomial of a complex input matrix ta[][] using the Faddeev-Leverrier algorithm.
+	// returns optionally also the matrix invers of ta[][]
 public:
 	charpoly(): n(0),lb(0)	{
-
+		// default constructor
+		// matrix size n will have to be defined by calling set_n() before functor can be used
 	}
 
 	charpoly(int tn): n(tn) {
+		// constructor with provided matrix size n
 		lb=new ctype**[2];
 		for(int i=0; i<2; ++i) {
 			new_matrix(lb[i],0);
@@ -93,29 +98,37 @@ public:
 	}
 
 	void set_n(int tn) {
+		// (re-)allocates the temporary memomry required to perform the Faddeev-Leverrier iteration
+		// on tnxtn matrices.
 		if(tn>0) {
+			// provided matrix size is valid:
 			if(tn!=n) {
-				n=tn;
+				// do something only if the requested matrix size, tn, differs from currently used one, n :
 				if(lb!=0) {
+					// free memory that has previously been allocated for a different matrix size:
 					for(int i=0; i<2; ++i) {
 						delete_matrix(lb[i]);
 					}
 					delete[] lb;
 				}
+				// allocate the memory for the new matrix size tn:
+				n=tn;
 				lb=new ctype**[2];
 				for(int i=0; i<2; ++i) {
 					new_matrix(lb[i],0);
 				}
 			}
 		} else {
-			n=0;
+			// invalid matrix size:
 			if(lb!=0) {
+				// if memory is allocated, free it:
 				for(int i=0; i<2; ++i) {
 					delete_matrix(lb[i]);
 				}
 				delete[] lb;
 				lb=0;
 			}
+			n=0;
 		}
 	}
 
@@ -124,9 +137,12 @@ public:
 			delete_matrix(lb[i]);
 		}
 		delete[] lb;
+		n=0;
 	}
 
 	void operator()(ctype* lc,ctype** ta) {
+		// input: complex matrix ta[][] 
+		// output: polynomial coeffs. --> lc[]  
 		int i,i1,i2,i3;
 		int ilb=0;
 		lc[n]=1.0;
@@ -180,6 +196,9 @@ public:
 	}
 
 	void operator()(ctype* lc,ctype** tia,ctype** ta) {
+		// input: complex matrix ta[][] 
+		// output: polynomial coeffs --> lc[] 
+		//         matrix inverse --> tia[][]
 		int i,i1,i2,i3;
 		int ilb=0;
 		lc[n]=1.0;
@@ -243,6 +262,8 @@ public:
 
 	void operator()(ftype* lc,ctype** ta) {
 		// assuming real charactersitic polynomial coefficients (from hermitian ta[i][j])
+		// input: hermitian matrix ta[][] 
+		// output: real polynomial coeffs --> lc[] 
 		int i,i1,i2,i3;
 		int ilb=0;
 		lc[n]=1.0;
@@ -298,6 +319,9 @@ public:
 
 	void operator()(ftype* lc,ctype** tia,ctype** ta) {
 		// assuming real charactersitic polynomial coefficients (from hermitian ta[i][j])
+		// input: hermitian matrix ta[][] 
+		// output: real polynomial coeffs --> lc[] 
+		//         matrix inverse --> tia[][]
 		int i,i1,i2,i3;
 		int ilb=0;
 		lc[n]=1.0;
@@ -363,24 +387,29 @@ public:
 
 private:
 	void new_matrix(ctype**& ta,int init=-1) {
+		// allocates memory for a complex nxn matrix and sets ta[][] to point at it
 		ta=new ctype*[n];
 		if(init==-1) {
+			// no initialization
 			for(int ic1=0; ic1<n; ++ic1) {
 				ta[ic1]=new ctype[n];
 			}
 		} else if(init==0) {
+			// initialize to zero matrix
 			for(int ic1=0; ic1<n; ++ic1) {
 				ta[ic1]=new ctype[n]();
 			}
 		} else {
+			// initialize to identity matrix
 			for(int ic1=0; ic1<n; ++ic1) {
 				ta[ic1]=new ctype[n]();
-				ta[ic1][ic1]=1;
+				ta[ic1][ic1]=1.0;
 			}
 		}
 	}
 
 	void delete_matrix(ctype**& ta) {
+		//deallocate the memory pointed at by ta[][] and sets the pointer to zero
 		for(int ic1=0; ic1<n; ++ic1) {
 			delete[] ta[ic1];
 		}
@@ -388,11 +417,14 @@ private:
 		ta=0;
 	}
 
-	int n;
-	ctype*** lb;
+	int n; //nxn matrix size
+	ctype*** lb; //pointer to temporary storage lb[2][n][n] used in Faddeev-Leverrier iteration
 };
 
 class bessel {
+	// class serving as functor for computing modified bessel functions of first kind
+	// for integer orders n and real argument x. 
+	// Algorithm adapted from Numerical Recipes 2nd ed., Sec. 6.6
 public:
 	bessel() {
 		iacc=40;
@@ -418,8 +450,8 @@ public:
 
 	ftype operator()(int n,ftype x) {
 		/*----------------------------------------------------------------------
-		!     this subroutine calculates the first kind modified bessel function
-		!     of integer order n, for any real x.
+		!     this subroutine calculates the modified bessel function of 1st kind
+		!     for integer order n and any real x.
 		!     it uses continued fractions (cf. https://dlmf.nist.gov/10.33.1)
 		!     which are computed in terms of "continuants".
 		------------------------------------------------------------------------*/
@@ -455,8 +487,8 @@ public:
 
 	void operator()(int n,int nn,ftype* bsil,ftype& bsi0,ftype x) {
 		/*----------------------------------------------------------------------
-		!     this subroutine calculates the first kind modified bessel function
-		!     of integer orders [n,...n+nn-1], for any real x. 
+		!     this subroutine calculates the modified bessel function of 1st kind
+		!     for integer orders [n,...,n+nn-1] for any real x. 
 		!     it uses continued fractions (cf. https://dlmf.nist.gov/10.33.1)
 		!     which are computed in terms of "continuants".
 		------------------------------------------------------------------------*/
@@ -618,12 +650,15 @@ public:
 };
 
 class esolve_h {
+	// class implementing the inplicitly double shifted QR alorithm
+	// for obtaining the eigenvalues of a hermitian matrix as functor
 public:
 	esolve_h(): n(0),d(0),a(0),s(0),w(0) {
-
+		// default constructor
 	}
 
 	esolve_h(int tn): n(tn),d(0),a(0) {
+		// constructor with provided matrix size n
 		s=new ftype[n-1]();
 		w=new ctype[n];
 	}
@@ -631,20 +666,19 @@ public:
 	void set_n(int tn) {
 		if(tn>0) {
 			if(tn!=n) {
-				n=tn;
 				d=0;
 				a=0;
 				if(s!=0) {
 					delete[] s;
 				}
-				s=new ftype[n-1]();
 				if(w!=0) {
 					delete[] w;
 				}
+				n=tn;
+				s=new ftype[n-1]();
 				w=new ctype[n];
 			}
 		} else {
-			n=0;
 			d=0;
 			a=0;
 			if(s!=0) {
@@ -655,6 +689,7 @@ public:
 				delete[] w;
 				w=0;
 			}
+			n=0;
 		}
 	}
 
@@ -990,13 +1025,19 @@ private:
 
 template<class T,class fT>
 class lu_det {
+	// class serving as functor to compute the determinant of a matrix T ta[][] 
+	// using LU decomposition (adapted from https://github.com/CFT-HY/HILA resp. Numerical Recipes, 2nd ed. p. 47 ff))
 public:
 	lu_det(): n(0),a(0),vv(0) {
-
+		// default constructor
+		// will require a call to set_n(tn) to specify the size tnxtn of the matrices on which the
+		// functor will operate, so that the required temporary memory can be allocated.
 	}
 
 	lu_det(int tn) {
+		// construtor with provided matrix size tn
 		if(tn>0) {
+			// valid matrix size --> allocate temporary memory
 			n=tn;
 			a=new T*[n];
 			vv=new fT[n];
@@ -1004,6 +1045,7 @@ public:
 				a[i]=new T[n]();
 			}
 		} else {
+			// invalid matrix size --> fall back to default construtor
 			n=0;
 			a=0;
 			vv=0;
@@ -1028,7 +1070,6 @@ public:
 	void set_n(int tn) {
 		if(tn>0) {
 			if(tn!=n) {
-				n=tn;
 				if(a!=0) {
 					for(int i=0; i<n; ++i) {
 						delete[] a[i];
@@ -1036,6 +1077,7 @@ public:
 					delete[] a;
 					a=0;
 				}
+				n=tn;
 				a=new T*[n];
 				for(int i=0; i<n; ++i) {
 					a[i]=new T[n]();
@@ -1047,7 +1089,6 @@ public:
 				vv=new fT[n];
 			}
 		} else {
-			n=0;
 			if(a!=0) {
 				for(int i=0; i<n; ++i) {
 					delete[] a[i];
@@ -1059,11 +1100,12 @@ public:
 				delete[] vv;
 				vv=0;
 			}
+			n=0;
 		}
 	}
 
 	T operator()(T** ta) {
-		// returns determinant of matrix ta[][] (ta remains unchanged)
+		// returns determinant of the provided matrix ta[][] (ta remains unchanged)
 		int imax=-1;
 		T det=0;
 		int i,j,k;
@@ -1073,19 +1115,20 @@ public:
 		fT big,tmp;
 		fT d=1;
 		for(i=0; i<n; ++i) {
+			//loop over rows to get scaling information
 			a1=a[i];
 			ta1=ta[i];
 			big=0;
 			for(j=0; j<n; ++j) {
-				a1[j]=ta1[j];
+				a1[j]=ta1[j]; // copy elements of ta[][] to a[][]
 				tmp=std::norm(a1[j]);
 				if(tmp>big) {
 					big=tmp;
 				}
 			}
 
-			//if full row is 0, then det must be 0:
 			if(big==0) {
+				//if full row is 0, then det must be 0
 				return det;
 			}
 
@@ -1093,8 +1136,9 @@ public:
 			vv[i]=1.0/std::sqrt(big);
 		}
 
-		//loop over rows:
+		
 		for(j=0; j<n; ++j) {
+			//loop over rows
 
 			//build lower triangle:
 			for(i=0; i<j; ++i) {
@@ -1156,9 +1200,11 @@ public:
 	}
 
 	void operator()(T** ta,fT& tldet, T& tsdet) {
-		//comutes for matrix ta[][] :  tldet=log(abs(det(ta))); tsdet=phase(det(ta));
+		//computes for matrix ta[][] :  tldet=log(abs(det(ta))); tsdet=phase(det(ta))
+		// uses the same LU algorithm as T operator()(T** ta)
 		int imax=-1;
-		tsdet=0;
+
+		tsdet=0; // initialize det to be zero in case algorithm finds that ta[][] is singular
 		tldet=0;
 		int i,j,k;
 		T* a1;
@@ -1167,19 +1213,20 @@ public:
 		fT big,tmp;
 		fT d=1;
 		for(i=0; i<n; ++i) {
+			//loop over rows to get scaling information
 			a1=a[i];
 			ta1=ta[i];
 			big=0;
 			for(j=0; j<n; ++j) {
-				a1[j]=ta1[j];
+				a1[j]=ta1[j]; // copy elements of ta[][] to a[][]
 				tmp=std::norm(a1[j]);
 				if(tmp>big) {
 					big=tmp;
 				}
 			}
 
-			//if full row is 0, then det must be 0:
 			if(big==0) {
+				//if full row is 0, then det must be 0
 				return;
 			}
 
@@ -1240,7 +1287,7 @@ public:
 			}
 		}
 
-		//compute ldet:
+		//compute tldet and tsdet
 		tsdet=d;
 		tldet=0;
 		for(j=0; j<n; ++j) {
@@ -1257,18 +1304,19 @@ public:
 	}
 
 private:
-	int n;
-	T** a;
-	fT* vv;
+	int n; //size of nxn matrix to operate on
+	T** a; //pointer to temporary nxn matrix on which LU decomposition will be performed
+	       //in order to leave input matrix unchanged
+	fT* vv; //temporary array of length n to hold row-scaling factors
 };
 
 class sun_integrator {
 public:
-	sun_integrator(): a(0),n(0),d(0),chp(),cdet(),fdet(),tbr(0),nltbr(0),tbrsq(0),ltbrsq(0),cp(0),cps(0),cpl(0),cpc(0),rfsqrt(0),rf(0),trs(0),nhlmax(0),lmax(0),ltabl(0),ltmf(0),lnormf(0),mmax(0),tbrpowtab(0),pal(0),pals(0),pall(0),tal(0),talc(0),nl(0),lfl(0) {
+	sun_integrator(): a(0),n(0),d(0),chp(),cdet(),fdet(),tbr(0),ltbr(0),nltbr(0),tbrsq(0),ltbrsq(0),cp(0),cps(0),cpl(0),cpc(0),rfsqrt(0),rf(0),trs(0),nhlmax(0),lmax(0),ltabl(0),ltmf(0),lnormf(0),mmax(0),tbrpowtab(0),pal(0),pals(0),pall(0),tal(0),talc(0),nl(0),lfl(0) {
 
 	}
 
-	sun_integrator(int tn,int td=4): n(tn),d(td),chp(tn),cdet(tn),fdet(tn),tbr(0),nltbr(0),tbrsq(0),ltbrsq(0) {
+	sun_integrator(int tn,int td=4): n(tn),d(td),chp(tn),cdet(tn),fdet(tn),tbr(0),ltbr(0),nltbr(0),tbrsq(0),ltbrsq(0) {
 		_init();
 	}
 
@@ -1351,11 +1399,16 @@ public:
 	}
 
 	void set_beta(ftype beta) {
-		tbr=beta*rfsqrt/(2.0*(ftype)n);
+		tbr=beta*rfsqrt/(2.0*(ftype)n); //combine beta/(2*n) with rescaling factor rfsqrt of input matrix
 		nltbr=(ftype)n*std::log(tbr);
 		tbrsq=tbr*tbr;
-		ltbrsq=2.0*std::log(tbr);
+		ltbr=std::log(tbr);
+		ltbrsq=2.0*ltbr;
 
+		// set up the lookup table for the values lfl[m][l][i]=log(f(m,l,j)), where f(m,l,j)=tbr^(2*m-j)*j!/((m+l)!*(m-j)!)
+		// note that f(m,l,j) contains an extra factor of tbr^(-j), this due to a balancing procedure to improve the conditioning
+		// number of the matrices tal[l][][], who's determinants need to be computed. The balancing is achived by multiplying
+		// the each element tal[l][j][i] by tbr^(i-j)
 		ftype lf0=0;
 		for(int im=0; im<n; ++im) {
 			ftype lfl0=lf0;
@@ -1363,15 +1416,15 @@ public:
 				ftype lfj0=lfl0;
 				for(int ij=im; ij>=0; --ij) {
 					lfl[im][il][ij]=lfj0;
-					lfj0+=ltbrsq-std::log((ftype)(im-(ij-1)));
+					lfj0+=ltbr-std::log((ftype)(im-(ij-1)));
 				}
 				lfl0+=std::log((ftype)(1+il))-std::log((ftype)(1+im+il));
 			}
-			lf0-=std::log((ftype)(1+im));
+			lf0+=ltbr-std::log((ftype)(1+im));
 		}
 
 
-		lf0=ltbrsq-ltmf;
+		lf0+=ltbr;
 
 		for(int im=n; im<mmax; ++im) {
 			ftype lfl0=lf0;
@@ -1379,25 +1432,21 @@ public:
 				ftype lfj0=lfl0;
 				for(int ij=n-1; ij>=0; --ij) {
 					lfl[im][il][ij]=lfj0;
-					lfj0+=ltbrsq-std::log((ftype)(im-(ij-1)));
+					lfj0+=ltbr-std::log((ftype)(im-(ij-1)));
 				}
 				lfl0+=std::log((ftype)(1+il))-std::log((ftype)(1+im+il));
 			}
 			lf0+=ltbrsq-std::log((ftype)(1+im))-std::log((ftype)(2+im-n));
 		}
 		
-		ftype powfc;
+		// normally each column k of tal[l][j][k] would come with a rescaling factor tbrsq^(-k); but due to the aforementioned
+		// balancing procedure, the factor is only tbr^(-k).
+		ftype powfc=1.0;
 		for(int k=0; k<n; ++k) {
-			powfc=1.0;
-			for(int j=k; j<n; ++j) {
-				tbrpowtab[k][j]=powfc;
-				powfc*=tbr;
-			}
-			powfc=1.0/tbr;
-			for(int j=k+1; j<n; ++j) {
+			for(int j=0; j<n; ++j) {
 				tbrpowtab[j][k]=powfc;
-				powfc/=tbr;
 			}
+			powfc/=tbr;
 		}
 	}
 
@@ -1444,8 +1493,11 @@ public:
 
 	ftype operator()(ctype** staple) {
 
+		// compute the hermitian matrix a=stapled.staple^{\dagger}:
 		matrix_mult_na(staple,staple,trs,a);
 
+		// since we won't need the matrix powers of a, we compute the coefficients of the
+		// characteristic polynomial of a with the 
 		chp(cp,a);
 
 		int tlmax=lmax;
@@ -1959,6 +2011,7 @@ private:
 	ftype*** tal;
 	ftype*** talc;
 	ftype tbr;
+	ftype ltbr;
 	ftype nltbr;
 	ftype trs;
 	ftype tbrsq;
