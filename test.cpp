@@ -1,6 +1,22 @@
-// SUN_one_link_integral.cpp : Diese Datei enthält die Funktion "main". Hier beginnt und endet die Ausführung des Programms.
-//
+/*
+    cpp file for testing the sun_integrator class
+    Copyright (C) 2024  Tobias Rindlisbacher
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    Email: ritobias@gmx.ch
+*/
 #include "sun_one_link_integral.h"
 
 int main()
@@ -78,25 +94,22 @@ int main()
 
 
 
+      if(0) {
+        // test charpoly:
+        charpoly chp(n);
+        ctype* cp=new ctype[n+1];
+        ctype** ai=new ctype*[n];
+        for(int i=0; i<n; ++i) {
+            ai[i]=new ctype[n];
+        }
 
-
- 
-    charpoly chp(n);
-
-    ctype* cp=new ctype[n+1];
-    ctype** ai=new ctype*[n];
-    for(int i=0; i<n; ++i) {
-        ai[i]=new ctype[n];
-    }
-
-    if(0) {
-        chp(cp,ai,a);
-
+        chp(cp,ai,a); // get the characteristic polynomial coefficients cp[] and the matrix inverse ai[][] of a[][]
 
         for(int i=0; i<=n; ++i) {
             std::cout<<cp[i]<<std::endl;
         }
 
+        // check accuracy of inverse ai[][] of a[][]:
         ctype res;
         for(int i=0; i<n; ++i) {
             for(int j=0; j<n; ++j) {
@@ -112,18 +125,26 @@ int main()
             }
             std::cout<<std::endl;
         }
+
+        delete[] cp;
+        for(int i=0; i<n; ++i) {
+            delete[] ai[i];
+        }
+        delete[] ai;
     }
 
+    // specifiy a beta-value and number of dimensions:
     ftype tb=21.;
     int td=4;
 
-    sun_integrator sun_int(n,td);
-    sun_int.set_beta(tb);
+    
+    sun_integrator sun_int(n,td); // initialize sun_integrator object
+    sun_int.set_beta(tb); // set the beta value
 
-    ftype fsum=sun_int(a);
+    ftype fsum=sun_int(a); // compute the log of the one-link integral
     std::cout<<"fsum: "<<fsum<<", zsum: "<<std::exp(fsum)<<std::endl;
 
-    ftype fsumr=fsum-tb*2*(td-1);
+    ftype fsumr=fsum-tb*2*(td-1); // log of one-link integral after subtracting consatnt action piece
     std::cout<<"fsumr: "<<fsumr<<", zsum: "<<std::exp(fsumr)<<std::endl;
 
 }

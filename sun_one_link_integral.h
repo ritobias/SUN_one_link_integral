@@ -1,3 +1,23 @@
+/*
+	header-only C++ implementation of a SU(n) one-link integrator using 
+	the iterative Cayley-Hamilton method
+	Copyright (C) 2024  Tobias Rindlisbacher
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+	Email: ritobias@gmx.ch
+*/
 #pragma once
 #include <algorithm>
 #include <complex>
@@ -80,8 +100,8 @@ namespace levi_civita {
 };
 
 class charpoly {
-	// class that acts as functor that computes the coefficients of the characteristic
-	// polynomial of a complex input matrix ta[][] using the Faddeev-Leverrier algorithm.
+	// functor class for computing the coefficients of the characteristic polynomial
+	// of a complex input matrix ta[][], using the Faddeev-Leverrier algorithm.
 	// returns optionally also the matrix invers of ta[][]
 public:
 	charpoly(): n(0),lb(0)	{
@@ -422,7 +442,7 @@ private:
 };
 
 class bessel {
-	// class serving as functor for computing modified bessel functions of first kind
+	// functor class for computing modified bessel functions of first kind
 	// for integer orders n and real argument x. 
 	// Algorithm adapted from Numerical Recipes 2nd ed., Sec. 6.6
 public:
@@ -650,8 +670,8 @@ public:
 };
 
 class esolve_h {
-	// class implementing the inplicitly double shifted QR alorithm
-	// for obtaining the eigenvalues of a hermitian matrix as functor
+	// functor class implementing the inplicitly double shifted QR alorithm
+	// for obtaining the eigenvalues of a hermitian matrix
 public:
 	esolve_h(): n(0),d(0),a(0),s(0),w(0) {
 		// default constructor
@@ -664,6 +684,8 @@ public:
 	}
 
 	void set_n(int tn) {
+		// (re-)allocates the temporary arrays to approriate size for operating on
+		// tnxtn matrices (if tn is valid matrix size)
 		if(tn>0) {
 			if(tn!=n) {
 				d=0;
@@ -1408,7 +1430,7 @@ public:
 		// set up the lookup table for the values lfl[m][l][i]=log(f(m,l,j)), where f(m,l,j)=tbr^(2*m-j)*j!/((m+l)!*(m-j)!)
 		// note that f(m,l,j) contains an extra factor of tbr^(-j), this due to a balancing procedure to improve the conditioning
 		// number of the matrices tal[l][][], who's determinants need to be computed. The balancing is achived by multiplying
-		// the each element tal[l][j][i] by tbr^(i-j)
+		// each element tal[l][j][i] by tbr^(i-j)
 		ftype lf0=0;
 		for(int im=0; im<n; ++im) {
 			ftype lfl0=lf0;
@@ -1439,7 +1461,7 @@ public:
 			lf0+=ltbrsq-std::log((ftype)(1+im))-std::log((ftype)(2+im-n));
 		}
 		
-		// normally each column k of tal[l][j][k] would come with a rescaling factor tbrsq^(-k); but due to the aforementioned
+		// normally each row k of tal[l][k][j] would come with a rescaling factor tbrsq^(-k); but due to the aforementioned
 		// balancing procedure, the factor is only tbr^(-k).
 		ftype powfc=1.0;
 		for(int k=0; k<n; ++k) {
@@ -1493,17 +1515,18 @@ public:
 
 	ftype operator()(ctype** staple) {
 
-		// compute the hermitian matrix a=stapled.staple^{\dagger}:
+		// compute the hermitian matrix a=trs*stapled.staple^{\dagger}:
 		matrix_mult_na(staple,staple,trs,a);
 
-		// since we won't need the matrix powers of a, we compute the coefficients of the
-		// characteristic polynomial of a with the 
+		// since we will not need the matrix powers of a, we compute the coefficients of the
+		// characteristic polynomial of a with the Faddeev-Leverrier method:
 		chp(cp,a);
 
 		int tlmax=lmax;
 		int im,ij,il;
 		ftype lrpf=0;
-		ftype tacp0=std::abs(cp[0]);
+		ftype tacp0=std::abs(cp[0]); //absolute value of det(a)
+		// determine tlmax:
 		if(tacp0>_fprec) {
 			lrpf=nltbr+0.5*std::log(tacp0);
 			for(il=1; il<lmax; ++il) {
@@ -1516,8 +1539,11 @@ public:
 			tlmax=1;
 		}
 
+		// initial values for the matrix R_l (=tal[il][][]) and the Cayley-Hamilton coefficients at polynomial order n (=pal[])
+		// the computation is done in terms of magnitude logarithms and signs to avoid over-/underflow problems and Kahan summation
+		// to avoid roundoff errors (not sure all this is still needed; it stems from before input matrix rescaling was used). 
 		for(im=0; im<n; ++im) {
-			pal[im]=0;
+			//pal[im]=0;
 			pals[im]=0;
 			pall[im]=0;
 			for(ij=0; ij<=im; ++ij) {
@@ -1533,7 +1559,7 @@ public:
 				}
 			}
 		}
-		pal[n-1]=1.0;
+		//pal[n-1]=1.0;
 		pals[n-1]=1;
 		pall[n-1]=0;
 
@@ -1547,6 +1573,7 @@ public:
 		ftype tt,ttal,texp;
 		int chs,chos,ch2s;
 
+		// determine logarithms and signs of the characteristic polynomial coefficients:
 		for(im=0; im<=n; ++im) {
 			ch=cp[im];
 			if(cp[im]==0) {
@@ -1563,6 +1590,7 @@ public:
 			}
 		}
 
+		// perofrm the Cayley-Hamilton iteration till all coefficients tal[][][] have converged (or mmax is reached)
 		for(im=n; im<mmax; ++im) {
 			lfc=lfl[im];
 			afcl=lfc[0][0];
@@ -1690,14 +1718,16 @@ public:
 			}
 		}
 
-		ctype ttdet=cdet(staple);
+		// compute phase of input matrix:
+		ctype ttdet=cdet(staple); //determinat via complex LU decomposition
 		ftype tth=std::arg(ttdet);
 
+		// compute Z_0:
 		il=0;
 		for(ij=0; ij<n; ++ij) {
 			for(k=0; k<n; ++k) {
-				tal[il][ij][k]+=talc[il][ij][k];
-				tal[il][ij][k]*=tbrpowtab[k][ij];
+				tal[il][ij][k]+=talc[il][ij][k]; // add the collected round-off differences back to the corresponding tal[0][][] element
+				tal[il][ij][k]*=tbrpowtab[k][ij]; // multiply by tbr^{-ij}
 			}
 		}
 
@@ -1712,8 +1742,8 @@ public:
 			}
 			std::cout<<std::endl;
 		}
-
-		fdet(tal[il],chl,ch);
+		// compute the Z_il for il>0 and add them with appropriate weight to Z_0:
+		fdet(tal[il],chl,ch); //determinant via real LU decomposition
 		cho=(ftype)il*lrpf-ltabl[il];
 		ftype maxexp=chl+cho;
 		ftype tsum=ch;
@@ -1721,12 +1751,12 @@ public:
 		for(il=1; il<tlmax; ++il) {
 			for(ij=0; ij<n; ++ij) {
 				for(k=0; k<n; ++k) {
-					tal[il][ij][k]+=talc[il][ij][k];
-					tal[il][ij][k]*=tbrpowtab[k][ij];
+					tal[il][ij][k]+=talc[il][ij][k]; // add the collected round-off differences back to the corresponding tal[il][][] element
+					tal[il][ij][k]*=tbrpowtab[k][ij]; // multiply by tbr^{-ij}
 				}
 			}
 			
-			fdet(tal[il],chl,ch);
+			fdet(tal[il],chl,ch); //determinant via real LU decomposition
 			cho=(ftype)il*lrpf-ltabl[il];
 			tmaxexp=chl+cho;
 			if(tmaxexp>maxexp) {
