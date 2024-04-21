@@ -670,7 +670,7 @@ public:
 };
 
 class esolve_h {
-	// functor class implementing the inplicitly double shifted QR alorithm
+	// functor class implementing the inplicitly shifted double step QR alorithm
 	// for obtaining the eigenvalues of a hermitian matrix
 public:
 	esolve_h(): n(0),d(0),a(0),s(0),w(0) {
@@ -1461,7 +1461,7 @@ public:
 			lf0+=ltbrsq-std::log((ftype)(1+im))-std::log((ftype)(2+im-n));
 		}
 		
-		// normally each row k of tal[l][k][j] would come with a rescaling factor tbrsq^(-k); but due to the aforementioned
+		// normally each column k of tal[l][j][k] would come with a rescaling factor tbrsq^(-k); but due to the aforementioned
 		// balancing procedure, the factor is only tbr^(-k).
 		ftype powfc=1.0;
 		for(int k=0; k<n; ++k) {
@@ -1727,11 +1727,11 @@ public:
 		for(ij=0; ij<n; ++ij) {
 			for(k=0; k<n; ++k) {
 				tal[il][ij][k]+=talc[il][ij][k]; // add the collected round-off differences back to the corresponding tal[0][][] element
-				tal[il][ij][k]*=tbrpowtab[k][ij]; // multiply by tbr^{-ij}
+				tal[il][ij][k]*=tbrpowtab[ij][k]; // multiply by tbr^{-k}
 			}
 		}
 
-		if(0) {
+		if(1) {
 			// print tal[0][][] matrix:
 			std::cout<<std::endl;
 			for(ij=0; ij<n; ++ij) {
@@ -1752,7 +1752,7 @@ public:
 			for(ij=0; ij<n; ++ij) {
 				for(k=0; k<n; ++k) {
 					tal[il][ij][k]+=talc[il][ij][k]; // add the collected round-off differences back to the corresponding tal[il][][] element
-					tal[il][ij][k]*=tbrpowtab[k][ij]; // multiply by tbr^{-ij}
+					tal[il][ij][k]*=tbrpowtab[ij][k]; // multiply by tbr^{-k}
 				}
 			}
 			
