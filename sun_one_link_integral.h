@@ -1137,12 +1137,12 @@ public:
 		fT big,tmp;
 		fT d=1;
 		for(i=0; i<n; ++i) {
-			//loop over rows to get scaling information
+			// loop over rows to get scaling information and copy elements of ta[][] to a[][]
 			a1=a[i];
 			ta1=ta[i];
 			big=0;
 			for(j=0; j<n; ++j) {
-				a1[j]=ta1[j]; // copy elements of ta[][] to a[][]
+				a1[j]=ta1[j]; // copy ta[i][j] to a[i][j]
 				tmp=std::norm(a1[j]);
 				if(tmp>big) {
 					big=tmp;
@@ -1150,19 +1150,19 @@ public:
 			}
 
 			if(big==0) {
-				//if full row is 0, then det must be 0
+				// if full row is 0, then det must be 0
 				return det;
 			}
 
-			//save scaling:
+			// save scaling:
 			vv[i]=1.0/std::sqrt(big);
 		}
 
 		
 		for(j=0; j<n; ++j) {
-			//loop over rows
+			// loop over rows
 
-			//build lower triangle:
+			// build lower triangle:
 			for(i=0; i<j; ++i) {
 				a1=a[i];
 				for(k=0; k<i; ++k) {
@@ -1170,7 +1170,7 @@ public:
 				}
 			}
 
-			//search for the pivot and start upper triangle:
+			// search for the pivot and start upper triangle:
 			big=0;
 			for(i=j; i<n; ++i) {
 				a1=a[i];
@@ -1187,7 +1187,7 @@ public:
 				}
 			}
 			ta1=a[j];
-			//swap rows if neede:
+			// swap rows if neede:
 			if(j!=imax) {
 				a1=a[imax];
 				ta1=a[j];
@@ -1198,12 +1198,12 @@ public:
 				vv[imax]=vv[j];
 			}
 
-			//if diag is zero now, then det must be zero:
+			// if diag is zero now, then det must be zero:
 			if(std::abs(ta1[j])==0) {
 				return det;
 			}
 
-			//divide by the pivot:
+			// divide by the pivot:
 			if(j!=n-1) {
 				dum=1.0/ta1[j];
 				for(i=j+1; i<n; ++i) {
@@ -1212,7 +1212,7 @@ public:
 			}
 		}
 
-		//compute det:
+		// compute det:
 		det=d;
 		for(j=0; j<n; ++j) {
 			det*=a[j][j];
@@ -1222,7 +1222,8 @@ public:
 	}
 
 	void operator()(T** ta,fT& tldet, T& tsdet) {
-		//computes for matrix ta[][] :  tldet=log(abs(det(ta))); tsdet=phase(det(ta))
+		// computes determinant of matrix ta[][] and returns the log of its magnitude, tldet=log(abs(det(ta))),
+		// and its phase/sign, tsdet=det(ta)/abs(det(ta)).
 		// uses the same LU algorithm as T operator()(T** ta)
 		int imax=-1;
 
@@ -1235,12 +1236,12 @@ public:
 		fT big,tmp;
 		fT d=1;
 		for(i=0; i<n; ++i) {
-			//loop over rows to get scaling information
+			// loop over rows to get scaling information and copy elements of ta[][] to a[][]
 			a1=a[i];
 			ta1=ta[i];
 			big=0;
 			for(j=0; j<n; ++j) {
-				a1[j]=ta1[j]; // copy elements of ta[][] to a[][]
+				a1[j]=ta1[j]; // copy ta[i][j] to a[i][j]
 				tmp=std::norm(a1[j]);
 				if(tmp>big) {
 					big=tmp;
@@ -1248,18 +1249,18 @@ public:
 			}
 
 			if(big==0) {
-				//if full row is 0, then det must be 0
+				// if full row is 0, then det must be 0
 				return;
 			}
 
-			//save scaling:
+			// save scaling:
 			vv[i]=1.0/std::sqrt(big);
 		}
 
-		//loop over rows:
+		// loop over rows:
 		for(j=0; j<n; ++j) {
 
-			//build lower triangle:
+			// build lower triangle:
 			for(i=0; i<j; ++i) {
 				a1=a[i];
 				for(k=0; k<i; ++k) {
@@ -1267,7 +1268,7 @@ public:
 				}
 			}
 
-			//search for the pivot and start upper triangle:
+			// search for the pivot and start upper triangle:
 			big=0;
 			for(i=j; i<n; ++i) {
 				a1=a[i];
@@ -1284,7 +1285,7 @@ public:
 				}
 			}
 			ta1=a[j];
-			//swap rows if neede:
+			// swap rows if neede:
 			if(j!=imax) {
 				a1=a[imax];
 				ta1=a[j];
@@ -1295,12 +1296,12 @@ public:
 				vv[imax]=vv[j];
 			}
 
-			//if diag is zero now, then det must be zero:
+			// if diag is zero now, then det must be zero:
 			if(std::abs(ta1[j])==0) {
 				return;
 			}
 
-			//divide by the pivot:
+			// divide by the pivot:
 			if(j!=n-1) {
 				dum=1.0/ta1[j];
 				for(i=j+1; i<n; ++i) {
@@ -1309,7 +1310,7 @@ public:
 			}
 		}
 
-		//compute tldet and tsdet
+		// compute tldet and tsdet
 		tsdet=d;
 		tldet=0;
 		for(j=0; j<n; ++j) {
@@ -1326,10 +1327,10 @@ public:
 	}
 
 private:
-	int n; //size of nxn matrix to operate on
-	T** a; //pointer to temporary nxn matrix on which LU decomposition will be performed
-	       //in order to leave input matrix unchanged
-	fT* vv; //temporary array of length n to hold row-scaling factors
+	int n; // size of nxn matrix to operate on
+	T** a; // pointer to temporary nxn matrix on which LU decomposition will be performed
+	       // in order to leave input matrix unchanged
+	fT* vv; // temporary array of length n to hold row-scaling factors
 };
 
 class sun_integrator {
@@ -1519,7 +1520,7 @@ public:
 		matrix_mult_na(staple,staple,trs,a);
 
 		// since we will not need the matrix powers of a, we compute the coefficients of the
-		// characteristic polynomial of a with the Faddeev-Leverrier method:
+		// characteristic polynomial of a[][] with the Faddeev-Leverrier method:
 		chp(cp,a);
 
 		int tlmax=lmax;
