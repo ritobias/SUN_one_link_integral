@@ -1335,7 +1335,7 @@ private:
 
 class sun_integrator {
 public:
-	sun_integrator(): a(0),n(0),d(0),chp(),cdet(),fdet(),tbr(0),ltbr(0),nltbr(0),tbrsq(0),ltbrsq(0),cp(0),cps(0),cpl(0),cpc(0),rfsqrt(0),rf(0),trs(0),nhlmax(0),lmax(0),ltabl(0),ltmf(0),lnormf(0),mmax(0),tbrpowtab(0),pal(0),pals(0),pall(0),tal(0),talc(0),nl(0),lfl(0) {
+	sun_integrator(): a(0),n(0),d(0),chp(),cdet(),fdet(),tbr(0),ltbr(0),nltbr(0),tbrsq(0),ltbrsq(0),cp(0),cpc(0),rfsqrt(0),rf(0),trs(0),nhlmax(0),lmax(0),ltabl(0),ltmf(0),lnormf(0),mmax(0),tbrpowtab(0),pal(0),tal(0),talc(0),nl(0),lfl(0),tlfl(0) {
 
 	}
 
@@ -1358,8 +1358,6 @@ public:
 		if(n>0&&d>1) {
 			new_matrix(a,0);
 			cp=new ftype[n+1]();
-			cps=new int[n+1]();
-			cpl=new ftype[n+1]();
 			cpc=new ctype[n+1]();
 			rfsqrt=(ftype)(2*(d-1));
 			rf=rfsqrt*rfsqrt;
@@ -1386,13 +1384,17 @@ public:
 				lnormf+=(n-i)*std::log((ftype)i);
 			}
 
-			mmax=100;
+			mmax=15*n;
 			lfl=new ftype**[mmax];
 			for(int im=0; im<mmax; ++im) {
 				lfl[im]=new ftype*[lmax];
 				for(int il=0; il<lmax; ++il) {
 					lfl[im][il]=new ftype[n]();
 				}
+			}
+			tlfl=new ftype*[lmax];
+			for(int il=0; il<lmax; ++il) {
+				tlfl[il]=new ftype[n]();
 			}
 
 			tbrpowtab=new ftype*[n];
@@ -1401,8 +1403,6 @@ public:
 			}
 
 			pal=new ftype[n]();
-			pals=new int[n]();
-			pall=new ftype[n]();
 			tal=new ftype**[lmax];
 			for(int l=0; l<lmax; ++l) {
 				tal[l]=new ftype*[n];
@@ -1476,8 +1476,6 @@ public:
 	~sun_integrator() {
 		delete_matrix(a);
 		delete[] cp;
-		delete[] cps;
-		delete[] cpl;
 		delete[] cpc;
 		delete[] ltabl;
 		for(int im=0; im<mmax; ++im) {
@@ -1488,14 +1486,17 @@ public:
 		}
 		delete[] lfl;
 
+		for(int il=0; il<lmax; ++il) {
+			delete[] tlfl[il];
+		}
+		delete[] tlfl;
+
 		for(int i=0; i<n; ++i) {
 			delete[] tbrpowtab[i];
 		}
 		delete[] tbrpowtab;
 
 		delete[] pal;
-		delete[] pals;
-		delete[] pall;
 
 		for(int l=0; l<lmax; ++l) {
 			for(int j=0; j<n; ++j) {
@@ -1541,12 +1542,9 @@ public:
 		}
 
 		// initial values for the matrix R_l (=tal[il][][]) and the Cayley-Hamilton coefficients at polynomial order n (=pal[])
-		// the computation is done in terms of magnitude logarithms and signs to avoid over-/underflow problems and Kahan summation
-		// to avoid roundoff errors (not sure all this is still needed; it stems from before input matrix rescaling was used). 
+		// the computation uses Kahan summation to keep track and correct for leading roundoff errors (not really needed, it seems). 
 		for(im=0; im<n; ++im) {
-			//pal[im]=0;
-			pals[im]=0;
-			pall[im]=0;
+			pal[im]=0;
 			for(ij=0; ij<=im; ++ij) {
 				for(il=0; il<tlmax; ++il) {
 					tal[il][ij][im]=std::exp(lfl[im][il][ij]);
@@ -1560,147 +1558,68 @@ public:
 				}
 			}
 		}
-		//pal[n-1]=1.0;
-		pals[n-1]=1;
-		pall[n-1]=0;
+		pal[n-1]=1.0;
 
 		int tch;
 		int k;
 		int nhl=nhlmax;
 		ftype** lfc;
-		ftype afcl;
-		ftype ch,cho;
-		ftype chl,chol,ch2l;
-		ftype tt,ttal,texp;
-		int chs,chos,ch2s;
+		ftype ch,cho,chl;
+		ftype tt,ttal,dttal;
 
-		// determine logarithms and signs of the characteristic polynomial coefficients:
-		for(im=0; im<=n; ++im) {
-			ch=cp[im];
-			if(cp[im]==0) {
-				cps[im]=0;
-				cpl[im]=0;
-			} else {
-				if(cp[im]>0) {
-					cps[im]=1;
-					cpl[im]=std::log(cp[im]);
-				} else {
-					cps[im]=-1;
-					cpl[im]=std::log(-cp[im]);
-				}
-			}
-		}
+		ftype lsr=0.0;
+		ftype si=1.0;
+		ftype s;
 
 		// perofrm the Cayley-Hamilton iteration till all coefficients tal[][][] have converged (or mmax is reached)
 		for(im=n; im<mmax; ++im) {
-			lfc=lfl[im];
-			afcl=lfc[0][0];
 			tch=0;
-			//ch=-pal[n-1]*cp[0];
-			chs=-pals[n-1]*cps[0];
-			if(chs!=0) {
-				chl=pall[n-1]+cpl[0];
-			} else {
-				chl=0;
-			}
 
-			//cho=pal[0];
-			chos=pals[0];
-			chol=pall[0];
+			lfc=lfl[im];
 
-			//pal[0]=ch;
-			pals[0]=chs;
-			pall[0]=chl;
-
-			if(chs!=0) {
-				for(ij=0; ij<n; ++ij) {
-					for(il=0; il<tlmax; ++il) {
-						ttal=tal[il][ij][0];
-						texp=std::exp(chl+lfc[il][ij]);
-						if(texp>_fprec*std::abs(ttal)) {
-							//tal[il][ij][0]+=chs*std::exp(chl+lfc[il][ij]); (with Kahan summation)
-							texp*=(ftype)chs;
-							tt=ttal+texp;
-							if(std::abs(ttal)>=std::abs(texp)) {
-								talc[il][ij][0]+=(ttal-tt)+texp;
-							} else {
-								talc[il][ij][0]+=(texp-tt)+ttal;
-							}
-							tal[il][ij][0]=tt;
-							tch=1;
+			pal[n-1]*=si;
+			ch=-pal[n-1]*cp[0];
+			s=std::norm(ch);
+			cho=pal[0]*si;
+			pal[0]=ch;
+			for(ij=0; ij<n; ++ij) {
+				for(il=0; il<tlmax; ++il) {
+					tlfl[il][ij]=std::exp(lfc[il][ij]+lsr);
+					//tal[il][ij][0]+=ch*fc[il][ij]; (with Kahan summation):
+					ttal=tal[il][ij][0];
+					dttal=ch*tlfl[il][ij];
+					tt=ttal+dttal;
+					if(tt!=ttal) {
+						if(std::abs(ttal)>=std::abs(dttal)) {
+							talc[il][ij][0]+=(ttal-tt)+dttal;
+						} else {
+							talc[il][ij][0]+=(dttal-tt)+ttal;
 						}
+						tal[il][ij][0]=tt;
+						tch=1;
 					}
 				}
 			}
 
 			for(k=1; k<n; ++k) {
-				//ch2=-pal[n-1]*cp[k];
-				ch2s=-pals[n-1]*cps[k];
-				ch2l=pall[n-1]+cpl[k];
-
-				//ch=cho+ch2;
-				if(chos*ch2s==0) {
-					if(chos==0) {
-						chs=ch2s;
-						if(chs!=0) {
-							chl=ch2l;
-						} else {
-							chl=0;
-						}
-					} else {
-						chs=chos;
-						if(chs!=0) {
-							chl=chol;
-						} else {
-							chl=0;
-						}
-					}
-				} else if(ch2s==-chos&&std::abs(chol-ch2l)<_fprec) {
-					chs=0;
-					chl=0;
-				} else {
-					if(chol>ch2l) {
-						chs=chos;
-						if(chs!=0) {
-							chl=chol+std::log(1.0+(ftype)(ch2s*chos)*std::exp(ch2l-chol));
-						} else {
-							chl=0;
-						}
-					} else {
-						chs=ch2s;
-						if(chs!=0) {
-							chl=ch2l+std::log(1.0+(ftype)(chos*ch2s)*std::exp(chol-ch2l));
-						} else {
-							chl=0;
-						}
-					}
-				}
-
-				//cho=pal[k];
-				chos=pals[k];
-				chol=pall[k];
-
-				//pal[k]=ch;
-				pals[k]=chs;
-				pall[k]=chl;
-
-				if(chs!=0) {
-					for(ij=0; ij<n; ++ij) {
-						for(il=0; il<tlmax; ++il) {
-							//tal[il][ij][k]+=chs*std::exp(chl+lfc[il][ij]); (with Kahan summation)
-							ttal=tal[il][ij][k];
-							texp=std::exp(chl+lfc[il][ij]);
-							if(texp>_fprec*std::abs(ttal)) {
-								texp*=(ftype)chs;
-								tt=ttal+texp;
-								if(std::abs(ttal)>=std::abs(texp)) {
-									talc[il][ij][k]+=(ttal-tt)+texp;
-								} else {
-									talc[il][ij][k]+=(texp-tt)+ttal;
-								}
-								tal[il][ij][k]=tt;
-								tch=1;
+				ch=cho-pal[n-1]*cp[k];
+				s+=std::norm(ch);
+				cho=pal[k]*si;
+				pal[k]=ch;
+				for(ij=0; ij<n; ++ij) {
+					for(il=0; il<tlmax; ++il) {
+						//tal[il][ij][k]+=ch*fc[il][ij]; (with Kahan summation):
+						ttal=tal[il][ij][k];
+						dttal=ch*tlfl[il][ij];
+						tt=ttal+dttal;
+						if(tt!=ttal) {
+							if(std::abs(ttal)>=std::abs(dttal)) {
+								talc[il][ij][k]+=(ttal-tt)+dttal;
+							} else {
+								talc[il][ij][k]+=(dttal-tt)+ttal;
 							}
+							tal[il][ij][k]=tt;
+							tch=1;
 						}
 					}
 				}
@@ -1717,6 +1636,28 @@ public:
 				std::cout<<"niter: "<<im<<std::endl;
 				break;
 			}
+
+			if(s>1.0) {
+				s=std::sqrt(s);
+				lsr+=std::log(s);
+				si=1.0/s;
+			} else {
+				si=1.0;
+			}
+
+			/*
+			std::cout<<std::endl;
+			std::cout<<"pal: ";
+			ftype npal=0.0;
+			for(k=0; k<n; ++k) {
+				npal+=pal[k]*pal[k];
+				std::cout<<pal[k]<<" ";
+			}
+			npal=std::sqrt(npal);
+			std::cout<<std::endl;
+			std::cout<<"|pal|: "<<npal<<std::endl;
+			std::cout<<std::endl;
+			*/
 		}
 
 		// compute phase of input matrix:
@@ -1732,17 +1673,28 @@ public:
 			}
 		}
 
-		if(1) {
-			// print tal[0][][] matrix:
-			std::cout<<std::endl;
-			for(ij=0; ij<n; ++ij) {
-				for(k=0; k<n; ++k) {
-					std::cout<<tal[il][ij][k]<<" ";
-				}
-				std::cout<<std::endl;
+		/*
+		// print tal[0][][] matrix:
+		std::cout<<std::endl;
+		for(ij=0; ij<n; ++ij) {
+			for(k=0; k<n; ++k) {
+				std::cout<<tal[il][ij][k]<<" ";
 			}
 			std::cout<<std::endl;
 		}
+		std::cout<<std::endl;
+
+		// print talc[0][][]*tbrpowtab[][] matrix:
+		std::cout<<std::endl;
+		for(ij=0; ij<n; ++ij) {
+			for(k=0; k<n; ++k) {
+				std::cout<<talc[il][ij][k]*tbrpowtab[ij][k]<<" ";
+			}
+			std::cout<<std::endl;
+		}
+		std::cout<<std::endl;
+		*/
+
 		// compute the Z_il for il>0 and add them with appropriate weight to Z_0:
 		fdet(tal[il],chl,ch); //determinant via real LU decomposition
 		cho=(ftype)il*lrpf-ltabl[il];
@@ -2028,16 +1980,13 @@ private:
 	ftype* ltabl;
 	ftype** tbrpowtab;
 	ftype*** lfl;
+	ftype** tlfl;
 	ftype rf;
 	ftype rfsqrt;
 	ctype** a;
 	ctype* cpc;
 	ftype* cp;
-	int* cps;
-	ftype* cpl;
 	ftype* pal;
-	int* pals;
-	ftype* pall;
 	ftype* nl;
 	ftype*** tal;
 	ftype*** talc;

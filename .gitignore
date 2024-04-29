@@ -125,7 +125,7 @@ ipch/
 *.sap
 
 # Old files
-*_back
+*_back*
 
 # Visual Studio Trace Files
 *.e2e
