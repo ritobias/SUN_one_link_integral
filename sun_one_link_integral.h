@@ -59,7 +59,7 @@ namespace levi_civita {
 		}
 	}
 
-	static void new_lcs(int n,int** lcs, int& dfac) {
+	static void new_lcs(int n,int**& lcs, int& dfac) {
 		//sets up lcs[][], such that lcs[i][j] contains for "j<d" the "j"-th coordinate of the "i"-th non-zero entry
 		//of the Levi-Civita symbol (assuming that they are ordered such that \epsilon_{0 1 2 3} is the first, and
 		//and \epsilon_{3 2 1 0} the last nonzero entry) for "j=d" its value {-1,1}. 
@@ -87,7 +87,7 @@ namespace levi_civita {
 		delete[] tarr;
 	}
 
-	static void delete_lcs(int n,int** lcs) {
+	static void delete_lcs(int n,int**& lcs) {
 		int dfac=1;
 		for(int i=2; i<=n; ++i) {
 			dfac*=i;
@@ -96,6 +96,7 @@ namespace levi_civita {
 			delete[] lcs[i];
 		}
 		delete[] lcs;
+		lcs=0;
 	}
 };
 
@@ -1384,7 +1385,7 @@ public:
 				lnormf+=(n-i)*std::log((ftype)i);
 			}
 
-			mmax=15*n;
+			mmax=25*n;
 			lfl=new ftype**[mmax];
 			for(int im=0; im<mmax; ++im) {
 				lfl[im]=new ftype*[lmax];
@@ -1573,39 +1574,19 @@ public:
 
 		// perofrm the Cayley-Hamilton iteration till all coefficients tal[][][] have converged (or mmax is reached)
 		for(im=n; im<mmax; ++im) {
-			tch=0;
-
 			lfc=lfl[im];
-
-			pal[n-1]*=si;
-			ch=-pal[n-1]*cp[0];
-			s=std::norm(ch);
-			cho=pal[0]*si;
-			pal[0]=ch;
 			for(ij=0; ij<n; ++ij) {
 				for(il=0; il<tlmax; ++il) {
 					tlfl[il][ij]=std::exp(lfc[il][ij]+lsr);
-					//tal[il][ij][0]+=ch*fc[il][ij]; (with Kahan summation):
-					ttal=tal[il][ij][0];
-					dttal=ch*tlfl[il][ij];
-					tt=ttal+dttal;
-					if(tt!=ttal) {
-						if(std::abs(ttal)>=std::abs(dttal)) {
-							talc[il][ij][0]+=(ttal-tt)+dttal;
-						} else {
-							talc[il][ij][0]+=(dttal-tt)+ttal;
-						}
-						tal[il][ij][0]=tt;
-						tch=1;
-					}
 				}
 			}
-
-			for(k=1; k<n; ++k) {
-				ch=cho-pal[n-1]*cp[k];
-				s+=std::norm(ch);
-				cho=pal[k]*si;
+			s=0;
+			tch=0;
+			cho=pal[n-1]*si;
+			for(k=n-1; k>0; --k) {
+				ch=pal[k-1]*si-cho*cp[k];
 				pal[k]=ch;
+				s+=std::norm(ch);
 				for(ij=0; ij<n; ++ij) {
 					for(il=0; il<tlmax; ++il) {
 						//tal[il][ij][k]+=ch*fc[il][ij]; (with Kahan summation):
@@ -1624,6 +1605,27 @@ public:
 					}
 				}
 			}
+			ch=-cho*cp[0];
+			pal[0]=ch;
+			s+=std::norm(ch);
+			for(ij=0; ij<n; ++ij) {
+				for(il=0; il<tlmax; ++il) {
+					//tal[il][ij][k]+=ch*fc[il][ij]; (with Kahan summation):
+					ttal=tal[il][ij][0];
+					dttal=ch*tlfl[il][ij];
+					tt=ttal+dttal;
+					if(tt!=ttal) {
+						if(std::abs(ttal)>=std::abs(dttal)) {
+							talc[il][ij][0]+=(ttal-tt)+dttal;
+						} else {
+							talc[il][ij][0]+=(dttal-tt)+ttal;
+						}
+						tal[il][ij][0]=tt;
+						tch=1;
+					}
+				}
+			}
+
 			if(tch==0) {
 				--nhl;
 			}
